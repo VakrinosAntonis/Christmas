@@ -2,27 +2,49 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>3D Rotating ASCII Christmas Tree</title>
   <style>
-    body {
+    * {
+      box-sizing: border-box;
+    }
+    html, body {
       background-color: #0b0f19;
       color: #e2e8f0;
       display: flex;
       flex-direction: column;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      width: 100%;
+      height: 100dvh;
       margin: 0;
+      padding: 0;
       overflow: hidden;
       font-family: 'Courier New', Courier, monospace;
     }
     pre {
-      font-size: 14px;
-      line-height: 14px;
-      letter-spacing: 2px;
+      margin: 0;
+      padding: 0;
+      text-align: center;
       user-select: none;
       text-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+      font-size: 14px;
+      line-height: 14px;
+      letter-spacing: 1px;
+    }
+    /* Styling for the custom message under the tree */
+    #greeting {
+      margin-top: 16px;
+      padding: 0 16px;
+      text-align: center;
+      color: #ffd700;
+      font-weight: bold;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+      font-size: 20px;
+      max-width: 95vw;
+      word-wrap: break-word;
     }
     .star { color: #ffd700; font-weight: bold; text-shadow: 0 0 10px #ffd700; }
     .leaf-bright { color: #2ecc71; }
@@ -33,32 +55,180 @@
     .ornament-gold { color: #ffa502; font-weight: bold; text-shadow: 0 0 8px #ffa502; }
     .trunk { color: #8b5a2b; }
     .snow { color: #7f8fa6; }
+
+    /* =========================================
+       GIFT BOX & RIBBON COLOR THEMES
+       ========================================= */
+    .present-box-red {
+      color: #ff3860;
+      font-weight: bold;
+      text-shadow: 0 0 6px #ff3860, 0 0 14px rgba(255, 56, 96, 0.85);
+    }
+    .present-box-blue {
+      color: #00d2ff;
+      font-weight: bold;
+      text-shadow: 0 0 6px #00d2ff, 0 0 14px rgba(0, 210, 255, 0.85);
+    }
+    .present-box-purple {
+      color: #c56cf0;
+      font-weight: bold;
+      text-shadow: 0 0 6px #c56cf0, 0 0 14px rgba(197, 108, 240, 0.85);
+    }
+
+    .present-ribbon-gold {
+      color: #fff200;
+      font-weight: bold;
+      text-shadow: 0 0 8px #ffd700, 0 0 18px #ffffff;
+      animation: presentGlowGold 1.5s ease-in-out infinite alternate;
+    }
+    .present-ribbon-silver {
+      color: #ffffff;
+      font-weight: bold;
+      text-shadow: 0 0 8px #a5f3fc, 0 0 18px #ffffff;
+      animation: presentGlowSilver 1.5s ease-in-out infinite alternate;
+    }
+
+    /* Sparks Styles */
+    .spark-bright {
+      color: #ffffff;
+      font-weight: bold;
+      text-shadow: 0 0 6px #ffffff, 0 0 14px #ffd700;
+    }
+    .spark-gold {
+      color: #ffbe0b;
+      font-weight: bold;
+      text-shadow: 0 0 8px #ff9f1c, 0 0 14px #ff3860;
+    }
+    @keyframes presentGlowGold {
+      from { text-shadow: 0 0 6px #ffd700, 0 0 12px #ffa502; }
+      to   { text-shadow: 0 0 12px #ffffff, 0 0 22px #ffd700; }
+    }
+    @keyframes presentGlowSilver {
+      from { text-shadow: 0 0 6px #38bdf8, 0 0 12px #bae6fd; }
+      to   { text-shadow: 0 0 12px #ffffff, 0 0 22px #7dd3fc; }
+    }
   </style>
 </head>
 <body>
 
 <pre id="canvas"></pre>
 
+<!-- EDIT YOUR TEXT INSIDE THIS DIV -->
+<div id="greeting">Happy Birthday!</div>
+
 <script>
   const canvas = document.getElementById('canvas');
-  const width = 80;
-  const height = 42;
+  const greeting = document.getElementById('greeting');
+  const width = 64;
+  const height = 40;
   let angle = 0;
 
+  // Tree Vertical Reference Constants
+  const treeHeight = 24;
+  const topY = -14;
+  const groundY = topY + treeHeight + 3.4;
+
+  // =========================================================================
+  // GIFT CONFIGURATION PANEL — EDIT POSITION, VOLUME (SIZE), AND COLORS HERE
+  // =========================================================================
+  // Available boxClass options:    'present-box-red', 'present-box-blue', 'present-box-purple'
+  // Available ribbonClass options: 'present-ribbon-gold', 'present-ribbon-silver'
+  const giftsConfig = [
+    {
+      name: 'Gift 1 (Right - Medium Red)',
+      x: 2.3,                   // Left (-) / Right (+) position
+      y: groundY,               // Vertical base position
+      z: -6.5,                  // Depth (more negative = closer to camera)
+      halfW: 1.15,              // Half-width & half-depth (controls horizontal volume)
+      height: 2.0,              // Box height (controls vertical volume)
+      yawAngle: 0.25,           // Static rotation angle in radians so corners show in 3D
+      boxClass: 'present-box-red',
+      ribbonClass: 'present-ribbon-gold',
+      sparkCount: 22            // Number of sparks rising from this gift
+    },
+    {
+      name: 'Gift 2 (Left - Tall Blue)',
+      x: -5,
+      y: groundY + 0.1,
+      z: -6.8,
+      halfW: 0.85,
+      height: 1.45,
+      yawAngle: 0.15,
+      boxClass: 'present-box-blue',
+      ribbonClass: 'present-ribbon-silver',
+      sparkCount: 26
+    },
+    {
+      name: 'Gift 3 (Center-Front - Small Purple)',
+      x: -3.2,
+      y: groundY + 0.4,
+      z: -6.2,
+      halfW: 1.35,
+      height: 2.7,
+      yawAngle: -0.35,
+      boxClass: 'present-box-purple',
+      ribbonClass: 'present-ribbon-gold',
+      sparkCount: 18
+    }
+  ];
+  // =========================================================================
+
+  // Dynamically scale both the tree and the greeting to fit any screen
+  function resizeCanvas() {
+    const availWidth = window.innerWidth * 0.95;
+    const availHeight = window.innerHeight * 0.85;
+
+    const maxFontByWidth = (availWidth / width) / 0.72;
+    const maxFontByHeight = availHeight / height;
+
+    const optimalSize = Math.min(maxFontByWidth, maxFontByHeight, 16);
+    canvas.style.fontSize = `${optimalSize}px`;
+    canvas.style.lineHeight = `${optimalSize}px`;
+    canvas.style.letterSpacing = `${optimalSize * 0.12}px`;
+
+    const greetingSize = Math.max(14, Math.min(optimalSize * 1.6, 26));
+    greeting.style.fontSize = `${greetingSize}px`;
+  }
+
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
   // Generate background snow particles
-  const snowflakes = Array.from({ length: 45 }, () => ({
+  const snowflakes = Array.from({ length: 60 }, () => ({
     x: Math.random() * width,
     y: Math.random() * height,
-    speed: 0.15 + Math.random() * 0.25
+    speed: 0.002 + Math.random() * 0.1
   }));
 
+  // Spark particle emitter bound to a specific gift
+  function createSpark(gift) {
+    const spreadAngle = Math.random() * Math.PI * 2;
+    const speed = 0.02 + Math.random() * 0.055;
+    const boxTopY = gift.y - gift.height;
+    return {
+      gift,
+      x: gift.x + (Math.random() - 0.5) * (gift.halfW * 0.4),
+      y: boxTopY - 0.3,
+      z: gift.z + (Math.random() - 0.5) * (gift.halfW * 0.4),
+      vx: Math.cos(spreadAngle) * speed,
+      vy: -(0.055 + Math.random() * 0.1),
+      vz: Math.sin(spreadAngle) * speed,
+      life: Math.random(),
+      decay: 0.014 + Math.random() * 0.018
+    };
+  }
+
+  // Initialize spark pools for all configured gifts
+  const sparks = giftsConfig.flatMap(gift =>
+    Array.from({ length: gift.sparkCount }, () => createSpark(gift))
+  );
+
   function render() {
-    // Initialize screen buffers
     const buffer = Array.from({ length: height }, () => Array(width).fill(' '));
     const colorBuffer = Array.from({ length: height }, () => Array(width).fill(''));
     const zBuffer = Array.from({ length: height }, () => Array(width).fill(-Infinity));
 
-    // 1. Update & Draw Snow (Background layer)
+    // 1. Update & Draw Snow
     for (let flake of snowflakes) {
       flake.y += flake.speed;
       flake.x += Math.sin(angle + flake.y * 0.2) * 0.15;
@@ -75,22 +245,19 @@
     }
 
     // Helper to plot 3D points with perspective and Z-buffering
-    function plot3D(x, y, z, char, colorClass) {
-      // Rotate around Y-axis
-      const rx = x * Math.cos(angle) - z * Math.sin(angle);
-      const rz = x * Math.sin(angle) + z * Math.cos(angle);
+    function plot3D(x, y, z, char, colorClass, rotate = true, forceFront = false) {
+      const rx = rotate ? (x * Math.cos(angle) - z * Math.sin(angle)) : x;
+      const rz = rotate ? (x * Math.sin(angle) + z * Math.cos(angle)) : z;
 
-      // Perspective projection
       const fov = 45;
       const viewerDistance = 38;
       const scale = fov / (viewerDistance + rz);
 
-      const projX = Math.round(width / 2 + rx * scale * 1.8); // 1.8 compensates for character aspect ratio
+      const projX = Math.round(width / 2 + rx * scale * 1.8);
       const projY = Math.round(height / 2 + y * scale);
 
       if (projX >= 0 && projX < width && projY >= 0 && projY < height) {
-        // Higher rz means closer to viewer (inverted Z depending on coordinate system; here negative rz is closer)
-        const depth = -rz;
+        const depth = -rz + (forceFront ? 100 : 0);
         if (depth > zBuffer[projY][projX]) {
           zBuffer[projY][projX] = depth;
           buffer[projY][projX] = char;
@@ -99,12 +266,9 @@
       }
     }
 
-    // 2. Draw Tree Foliage (Spiral cone with tiered boughs)
-    const treeHeight = 24;
-    const topY = -14;
+    // 2. Draw Tree Foliage
     for (let h = 0; h < treeHeight; h += 0.22) {
       const progress = h / treeHeight;
-      // Create layered bough effect using modulo
       const tierWave = (progress * 5) % 1;
       const maxRadius = (progress * 11) * (0.65 + 0.35 * tierWave);
 
@@ -115,10 +279,8 @@
         const z = Math.sin(theta) * maxRadius;
         const y = topY + h;
 
-        // Calculate rotated Z for shading
         const rz = x * Math.sin(angle) + z * Math.cos(angle);
 
-        // Determine if this point is an ornament
         const hash = Math.sin(h * 12.9898 + i * 78.233) * 43758.5453;
         const rand = hash - Math.floor(hash);
 
@@ -127,7 +289,6 @@
           const color = colors[Math.floor((h + i) % colors.length)];
           plot3D(x * 1.04, y, z * 1.04, 'O', color);
         } else {
-          // Depth-based ASCII shading
           let char = '^';
           let shade = 'leaf-mid';
           if (rz < -maxRadius * 0.3) {
@@ -150,7 +311,88 @@
       }
     }
 
-    // 4. Draw Rotating 3D Star at the Top
+    // 3.5 Draw All Configured Gifts Locked in Front of the Tree
+    for (const gift of giftsConfig) {
+      const cosY = Math.cos(gift.yawAngle || 0);
+      const sinY = Math.sin(gift.yawAngle || 0);
+      const step = 0.22;
+      const boxTopY = gift.y - gift.height;
+
+      for (let dx = -gift.halfW; dx <= gift.halfW; dx += step) {
+        for (let dz = -gift.halfW; dz <= gift.halfW; dz += step) {
+          for (let dy = 0; dy <= gift.height; dy += step) {
+            const onXFace = Math.abs(Math.abs(dx) - gift.halfW) < step * 0.85;
+            const onZFace = Math.abs(Math.abs(dz) - gift.halfW) < step * 0.85;
+            const onYFace = dy < step * 0.85 || Math.abs(dy - gift.height) < step * 0.85;
+
+            if (onXFace || onZFace || onYFace) {
+              const isRibbon = Math.abs(dx) < 0.26 || Math.abs(dz) < 0.26;
+              // Rotate local box coordinates by gift.yawAngle for 3D perspective
+              const worldX = gift.x + (dx * cosY - dz * sinY);
+              const worldZ = gift.z + (dx * sinY + dz * cosY);
+
+              plot3D(
+                worldX,
+                gift.y - dy,
+                worldZ,
+                isRibbon ? '+' : '#',
+                isRibbon ? gift.ribbonClass : gift.boxClass,
+                false,
+                true
+              );
+            }
+          }
+        }
+      }
+
+      // Glowing Bow on Top of Each Gift
+      const bowOffsets = [
+        [0, 0, -0.35, '*'],
+        [-0.38, 0, -0.28, '~'],
+        [0.38, 0, -0.28, '~'],
+        [0, -0.38, -0.28, '~'],
+        [0, 0.38, -0.28, '~']
+      ];
+      for (const [bx, bz, by, bChar] of bowOffsets) {
+        const wx = gift.x + (bx * cosY - bz * sinY);
+        const wz = gift.z + (bx * sinY + bz * cosY);
+        plot3D(wx, boxTopY + by, wz, bChar, gift.ribbonClass, false, true);
+      }
+    }
+
+    // 3.6 Update & Draw Sparks Coming Out of All Gifts
+    for (let i = 0; i < sparks.length; i++) {
+      const s = sparks[i];
+      s.x += s.vx;
+      s.y += s.vy;
+      s.z += s.vz;
+      s.vy += 0.0025;
+      s.vx *= 0.985;
+      s.vz *= 0.985;
+      s.life -= s.decay;
+
+      if (s.life <= 0) {
+        sparks[i] = createSpark(s.gift);
+        continue;
+      }
+
+      let sparkChar = '.';
+      let sparkClass = 'spark-gold';
+      if (s.life > 0.7) {
+        sparkChar = '*';
+        sparkClass = 'spark-bright';
+      } else if (s.life > 0.4) {
+        sparkChar = '+';
+        sparkClass = 'spark-gold';
+      } else if (s.life > 0.2) {
+        sparkChar = "'";
+        sparkClass = 'spark-gold';
+      }
+
+      plot3D(s.x, s.y, s.z, sparkChar, sparkClass, false, true);
+    }
+
+    // 4. Draw Rotating 3D Star
     const starY = topY - 1.5;
     plot3D(0, starY, 0, '@', 'star');
     plot3D(0, starY - 1, 0, '|', 'star');
@@ -160,7 +402,7 @@
     plot3D(0, starY, -1.2, '+', 'star');
     plot3D(0, starY, 1.2, '+', 'star');
 
-    // 5. Build HTML string from buffers
+    // 5. Build HTML string
     let output = '';
     for (let y = 0; y < height; y++) {
       for (let x = 0; x < width; x++) {
@@ -176,7 +418,7 @@
     }
 
     canvas.innerHTML = output;
-    angle += 0.04;
+    angle += 0.005;
     requestAnimationFrame(render);
   }
 
