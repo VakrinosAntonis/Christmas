@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D Rotating ASCII Christmas Tree</title>
+  <style>
+    body {
+      background-color: #0b0f19;
+      color: #e2e8f0;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      overflow: hidden;
+      font-family: 'Courier New', Courier, monospace;
+    }
+    pre {
+      font-size: 14px;
+      line-height: 14px;
+      letter-spacing: 2px;
+      user-select: none;
+      text-shadow: 0 0 5px rgba(255, 255, 255, 0.2);
+    }
+    .star { color: #ffd700; font-weight: bold; text-shadow: 0 0 10px #ffd700; }
+    .leaf-bright { color: #2ecc71; }
+    .leaf-mid { color: #27ae60; }
+    .leaf-dark { color: #145a32; }
+    .ornament-red { color: #ff4757; font-weight: bold; text-shadow: 0 0 8px #ff4757; }
+    .ornament-blue { color: #1e90ff; font-weight: bold; text-shadow: 0 0 8px #1e90ff; }
+    .ornament-gold { color: #ffa502; font-weight: bold; text-shadow: 0 0 8px #ffa502; }
+    .trunk { color: #8b5a2b; }
+    .snow { color: #7f8fa6; }
+  </style>
+</head>
+<body>
+
+<pre id="canvas"></pre>
+
+<script>
+  const canvas = document.getElementById('canvas');
+  const width = 80;
+  const height = 42;
+  let angle = 0;
+
+  // Generate background snow particles
+  const snowflakes = Array.from({ length: 45 }, () => ({
+    x: Math.random() * width,
+    y: Math.random() * height,
+    speed: 0.15 + Math.random() * 0.25
+  }));
+
+  function render() {
+    // Initialize screen buffers
+    const buffer = Array.from({ length: height }, () => Array(width).fill(' '));
+    const colorBuffer = Array.from({ length: height }, () => Array(width).fill(''));
+    const zBuffer = Array.from({ length: height }, () => Array(width).fill(-Infinity));
+
+    // 1. Update & Draw Snow (Background layer)
+    for (let flake of snowflakes) {
+      flake.y += flake.speed;
+      flake.x += Math.sin(angle + flake.y * 0.2) * 0.15;
+      if (flake.y >= height) {
+        flake.y = 0;
+        flake.x = Math.random() * width;
+      }
+      const sx = Math.floor((flake.x + width) % width);
+      const sy = Math.floor(flake.y);
+      if (sy >= 0 && sy < height && sx >= 0 && sx < width) {
+        buffer[sy][sx] = '.';
+        colorBuffer[sy][sx] = 'snow';
+      }
+    }
+
+    // Helper to plot 3D points with perspective and Z-buffering
+    function plot3D(x, y, z, char, colorClass) {
+      // Rotate around Y-axis
+      const rx = x * Math.cos(angle) - z * Math.sin(angle);
+      const rz = x * Math.sin(angle) + z * Math.cos(angle);
+
+      // Perspective projection
+      const fov = 45;
+      const viewerDistance = 38;
+      const scale = fov / (viewerDistance + rz);
+
+      const projX = Math.round(width / 2 + rx * scale * 1.8); // 1.8 compensates for character aspect ratio
+      const projY = Math.round(height / 2 + y * scale);
+
+      if (projX >= 0 && projX < width && projY >= 0 && projY < height) {
+        // Higher rz means closer to viewer (inverted Z depending on coordinate system; here negative rz is closer)
+        const depth = -rz;
+        if (depth > zBuffer[projY][projX]) {
+          zBuffer[projY][projX] = depth;
+          buffer[projY][projX] = char;
+          colorBuffer[projY][projX] = colorClass;
+        }
+      }
+    }
+
+    // 2. Draw Tree Foliage (Spiral cone with tiered boughs)
+    const treeHeight = 24;
+    const topY = -14;
+    for (let h = 0; h < treeHeight; h += 0.22) {
+      const progress = h / treeHeight;
+      // Create layered bough effect using modulo
+      const tierWave = (progress * 5) % 1;
+      const maxRadius = (progress * 11) * (0.65 + 0.35 * tierWave);
+
+      const pointsInRing = Math.max(12, Math.floor(maxRadius * 9));
+      for (let i = 0; i < pointsInRing; i++) {
+        const theta = (i / pointsInRing) * Math.PI * 2 + (h * 0.5);
+        const x = Math.cos(theta) * maxRadius;
+        const z = Math.sin(theta) * maxRadius;
+        const y = topY + h;
+
+        // Calculate rotated Z for shading
+        const rz = x * Math.sin(angle) + z * Math.cos(angle);
+
+        // Determine if this point is an ornament
+        const hash = Math.sin(h * 12.9898 + i * 78.233) * 43758.5453;
+        const rand = hash - Math.floor(hash);
+
+        if (rand > 0.94 && progress > 0.1) {
+          const colors = ['ornament-red', 'ornament-blue', 'ornament-gold'];
+          const color = colors[Math.floor((h + i) % colors.length)];
+          plot3D(x * 1.04, y, z * 1.04, 'O', color);
+        } else {
+          // Depth-based ASCII shading
+          let char = '^';
+          let shade = 'leaf-mid';
+          if (rz < -maxRadius * 0.3) {
+            char = '*';
+            shade = 'leaf-bright';
+          } else if (rz > maxRadius * 0.3) {
+            char = ':';
+            shade = 'leaf-dark';
+          }
+          plot3D(x, y, z, char, shade);
+        }
+      }
+    }
+
+    // 3. Draw Tree Trunk
+    for (let h = 0; h < 5; h += 0.3) {
+      for (let theta = 0; theta < Math.PI * 2; theta += 0.3) {
+        const r = 1.8;
+        plot3D(Math.cos(theta) * r, topY + treeHeight + h, Math.sin(theta) * r, '|', 'trunk');
+      }
+    }
+
+    // 4. Draw Rotating 3D Star at the Top
+    const starY = topY - 1.5;
+    plot3D(0, starY, 0, '@', 'star');
+    plot3D(0, starY - 1, 0, '|', 'star');
+    plot3D(0, starY + 1, 0, '|', 'star');
+    plot3D(-1.2, starY, 0, '-', 'star');
+    plot3D(1.2, starY, 0, '-', 'star');
+    plot3D(0, starY, -1.2, '+', 'star');
+    plot3D(0, starY, 1.2, '+', 'star');
+
+    // 5. Build HTML string from buffers
+    let output = '';
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const ch = buffer[y][x];
+        const cls = colorBuffer[y][x];
+        if (cls && ch !== ' ') {
+          output += `<span class="${cls}">${ch}</span>`;
+        } else {
+          output += ch;
+        }
+      }
+      output += '\n';
+    }
+
+    canvas.innerHTML = output;
+    angle += 0.04;
+    requestAnimationFrame(render);
+  }
+
+  render();
+</script>
+</body>
+</html>
